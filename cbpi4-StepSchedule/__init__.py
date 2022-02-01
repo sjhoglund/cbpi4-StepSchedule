@@ -61,7 +61,8 @@ class StepSchedule(CBPiStep):
         await self.push_update()
 
     async def on_start(self):
-        self.summary='Waiting to brew...'
+        current_time = now.strftime("%H")
+        self.summary='Brew time scheduled for '+self.props.get("scheduleTime", "00")
         self.AutoNext = False if self.props.get("AutoNext", "No") == "No" else True
         if self.timer is None:
             self.timer = Timer(1 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
@@ -83,5 +84,5 @@ class StepSchedule(CBPiStep):
         return StepResult.DONE
 
 def setup(cbpi):
-    cbpi.plugin.register("Schedule Steps", StepSchedule)
+    cbpi.plugin.register("StepSchedule", StepSchedule)
     pass
