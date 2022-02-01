@@ -58,7 +58,7 @@ class StepSchedule(CBPiStep):
     async def run(self):
         while self.running == True:
            await asyncio.sleep(1)
-           if self.timer.is_running is not True:
+           if self.props.get("Hour",0) == time.strftime("%-H") and self.timer.is_running is not True:
                self.timer.start()
                self.timer.is_running = True
         await self.push_update()
