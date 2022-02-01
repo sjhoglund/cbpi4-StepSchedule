@@ -1,5 +1,6 @@
 
 # -*- coding: utf-8 -*-
+import os
 import asyncio
 import aiohttp
 from aiohttp import web
@@ -10,13 +11,13 @@ from datetime import datetime
 import time
 from cbpi.api import *
 import logging
+from unittest.mock import MagicMock, patch
 from socket import timeout
 from typing import KeysView
 from cbpi.api.config import ConfigType
 from cbpi.api.base import CBPiBase
 from voluptuous.schema_builder import message
 from cbpi.api.dataclasses import NotificationAction, NotificationType
-import numpy as np
 import requests
 import warnings
 
@@ -86,11 +87,14 @@ class StepSchedule(CBPiStep):
         while self.running == True:
             await asyncio.sleep(1)
             current_time = now.strftime("%H")
-            if self.props.get("scheduleTime", "00") == current_time and self.timer.is_running is not True:
+            if self.props.get("scheduleTime", "21") == current_time and self.timer.is_running is not True:
                 self.timer.start()
                 self.timer.is_running = True
-
+        await self.push_update()
         return StepResult.DONE
+    
+    async def reset(self):
+        self.timer = Timer(1 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
 
 def setup(cbpi):
     cbpi.plugin.register("StepSchedule", StepSchedule)
