@@ -69,19 +69,19 @@ class StepSchedule(CBPiStep):
 
     async def on_stop(self):
         await self.timer.stop()
-        self.summary = 'Not ready yet :(.'
+        self.summary = 'Not ready yet.'
         await self.push_update()
 
     async def run(self):
         while self.running == True:
             await asyncio.sleep(1)
             current_time = now.strftime("%H")
-            if current_time == self.props.get("scheduleTime") and self.timer.is_running is not True:
+            if self.props.get("scheduleTime", "00") == current_time and self.timer.is_running is not True:
                 self.timer.start()
                 self.timer.is_running = True
 
         return StepResult.DONE
 
 def setup(cbpi):
-    cbpi.plugin.register("StepSchedule", StepSchedule)
+    cbpi.plugin.register("Schedule Steps", StepSchedule)
     pass
