@@ -7,71 +7,56 @@ from unittest.mock import MagicMock, patch
 import asyncio
 import random
 from cbpi.api import *
+from cbpi.api.step import CBPiStep, StepResult
+from cbpi.api.dataclasses import NotificationAction, NotificationType
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+@parameters([
+     Property.Select(label="scheduleTime", options=[
+         "01:00:00",
+         "02:00:00",
+         "03:00:00",
+         "04:00:00",
+         "05:00:00",
+         "06:00:00",
+         "07:00:00",
+         "08:00:00",
+         "09:00:00",
+         "10:00:00",
+         "11:00:00",
+         "12:00:00",
+         "13:00:00",
+         "14:00:00",
+         "15:00:00",
+         "16:00:00",
+         "17:00:00",
+         "18:00:00",
+         "19:00:00",
+         "20:00:00",
+         "21:00:00",
+         "22:00:00",
+         "23:00:00",
+     ], description="Select a time for the brew steps to start running.")
+])
 
-class CustomWebExtension(CBPiExtension):
-
-    @request_mapping(path="/", auth_required=False)
-    async def hello_world(self, request):
-        return web.HTTPFound('static/index.html')
-
-    def __init__(self, cbpi):
-        self.cbpi = cbpi
-        path = os.path.dirname(__file__)
-        self.cbpi.register(self, "/cbpi_uiplugin", static=os.path.join(path, "static"))
-
-
-@parameters([])
-class CustomSensor(CBPiSensor):
+class StepSchedule(CBPiStep):
     
-    def __init__(self, cbpi, id, props):
-        super(CustomSensor, self).__init__(cbpi, id, props)
-        self.value = 0
+    async def NextStep(self, **kwargs):
+        await self.next()
 
-    @action(key="Test", parameters=[])
-    async def action1(self, **kwargs):
-        print("ACTION!", kwargs)
+    async def on_start(self):
+        await self.push_update()
 
     async def run(self):
-        while self.running is True:
-            self.value = random.randint(0,50)
-            self.push_update(self.value)
+        while self.running == True:
             await asyncio.sleep(1)
-    
-    def get_state(self):
-        return dict(value=self.value)
-
-@parameters([])
-class CustomActor(CBPiActor):
-
-    @action("action", parameters={})
-    async def action(self, **kwargs):
-        print("Action Triggered", kwargs)
-        pass
-    
-    def init(self):
-        self.state = False
-        pass
-
-    async def on(self, power=0):
-        logger.info("ACTOR 1111 %s ON" % self.id)
-        self.state = True
-
-    async def off(self):
-        logger.info("ACTOR %s OFF " % self.id)
-        self.state = False
-
-    def get_state(self):
-        return self.state
-    
-    async def run(self):
-        pass
-
+            current_time = now.strftime("%H")
+            if current_time == scheduleTime[:2]:
+                self.cbpi.notify(self.name, "It's brew time!", NotificationType.INFO)
+                await self.next()
 
 def setup(cbpi):
-    #cbpi.plugin.register("MyCustomActor", CustomActor)
-    #cbpi.plugin.register("MyCustomSensor", CustomSensor)
-    #cbpi.plugin.register("MyustomWebExtension", CustomWebExtension)
+    cbpi.plugin.register("Schedule Steps", StepSchedule)
     pass
