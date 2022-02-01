@@ -38,24 +38,52 @@ logger = logging.getLogger(__name__)
          "21:00:00",
          "22:00:00",
          "23:00:00",
-     ], description="Select a time for the brew steps to start running.")
+     ], description="Select a time for the brew steps to start running."),
+     Property.Select(label="AutoNext",options=["Yes","No"], description="Automatically move to next step (Yes) or pause after Notification (No)")
 ])
 
 class StepSchedule(CBPiStep):
     
     async def NextStep(self, **kwargs):
         await self.next()
+        
+    async def on_timer_done(self,timer):
+        self.summary = self.props.get("Notification","")
+
+        if self.AutoNext == True:
+            self.cbpi.notify(self.name, self.props.get("Notification",""), NotificationType.INFO)
+            await self.next()
+        else:
+            self.cbpi.notify(self.name, self.props.get("Notification",""), NotificationType.INFO, action=[NotificationAction("Next Step", self.NextStep)])
+            await self.push_update()
+
+    async def on_timer_update(self,timer, seconds):
+        await self.push_update()
 
     async def on_start(self):
+        self.summary = "Waiting to brew..."
+        self.AutoNext = False if self.props.get("AutoNext", "No") == "No" else True
+        if self.timer is None:
+            self.timer = Timer(1 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
+        await self.push_update()
+    
+    async def on_stop(self):
+        await self.timer.stop()
+        self.summary = "Schedule stopped."
         await self.push_update()
 
     async def run(self):
         while self.running == True:
             await asyncio.sleep(1)
             current_time = now.strftime("%H")
-            if current_time == scheduleTime[:2]:
-                self.cbpi.notify(self.name, "It's brew time!", NotificationType.INFO)
-                await self.next()
+            if current_time == scheduleTime[:2] and self.timer.is_running is not True:
+                sself.timer.start()
+                self.timer.is_running = True
+        await self.push_update()
+        return StepResult.DONE
+    
+    async def reset(self):
+        self.timer = Timer(1 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
 
 def setup(cbpi):
     cbpi.plugin.register("Schedule Steps", StepSchedule)
