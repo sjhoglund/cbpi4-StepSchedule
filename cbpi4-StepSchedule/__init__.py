@@ -20,34 +20,32 @@ import requests
 import warnings
 
 
-@parameters([Property.Number(label="Temp", configurable=True),
-             Property.Sensor(label="Sensor"),
-             Property.Kettle(label="Kettle"),
-             Property.Select(label="AutoMode",options=["Yes","No"], description="Switch Kettlelogic automatically on and off -> Yes")])
+@parameters([Property.Number(label="Hour", configurable=True),
+             Property.Select(label="AutoNext",options=["Yes","No"], description="Automatically move to next step (Yes) or pause after Notification (No)")])
 
-class TEST_MashInStep(CBPiStep):
+class StepSchedule(CBPiStep):
 
     async def NextStep(self, **kwargs):
         await self.next()
 
     async def on_timer_done(self,timer):
-        self.summary = "MashIn Temp reached. Please add Malt Pipe."
-        await self.push_update()
-        if self.AutoMode == True:
-            await self.setAutoMode(False)
-        self.cbpi.notify(self.name, 'MashIn Temp reached. Please add malt pipe and malt. Move to next step', action=[NotificationAction("Next Step", self.NextStep)])
+        self.summary = "Brew time!!!"
+        if self.AutoNext == True:
+             await self.next()
+        else:
+            await self.push_update()
+            self.cbpi.notify(self.name, 'Brew time. Move to next step', action=[NotificationAction("Next Step", self.NextStep)])
 
     async def on_timer_update(self,timer, seconds):
         await self.push_update()
 
     async def on_start(self):
         self.port = str(self.cbpi.static_config.get('port',8000))
-        self.AutoMode = True if self.props.get("AutoMode","No") == "Yes" else False
-        self.kettle=self.get_kettle(self.props.get("Kettle", None))
-        self.kettle.target_temp = int(self.props.get("Temp", 0))
-        if self.AutoMode == True:
-            await self.setAutoMode(True)
-        self.summary = "Waiting for Target Temp"
+        self.summary = "Waiting for brew time... hour: "+self.props.get("Hour",0)
+        if self.props.get("AutoNext", "No") == "Yes":
+            self.AutoNext = True 
+        else:
+            self.AutoNext = False 
         if self.timer is None:
             self.timer = Timer(1 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
         await self.push_update()
@@ -55,15 +53,12 @@ class TEST_MashInStep(CBPiStep):
     async def on_stop(self):
         await self.timer.stop()
         self.summary = ""
-        if self.AutoMode == True:
-            await self.setAutoMode(False)
         await self.push_update()
 
     async def run(self):
         while self.running == True:
            await asyncio.sleep(1)
-           sensor_value = self.get_sensor_value(self.props.get("Sensor", None)).get("value")
-           if sensor_value >= int(self.props.get("Temp",0)) and self.timer.is_running is not True:
+           if self.timer.is_running is not True:
                self.timer.start()
                self.timer.is_running = True
         await self.push_update()
@@ -71,22 +66,6 @@ class TEST_MashInStep(CBPiStep):
 
     async def reset(self):
         self.timer = Timer(1 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
-
-    async def setAutoMode(self, auto_state):
-        try:
-            if (self.kettle.instance is None or self.kettle.instance.state == False) and (auto_state is True):
-                url="http://127.0.0.1:" + self.port + "/kettle/"+ self.kettle.id+"/toggle"
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(url) as response:
-                        return await response.text()
-                        await self.push_update()
-            elif (self.kettle.instance.state == True) and (auto_state is False):
-
-                await self.kettle.instance.stop()
-                await self.push_update()
-
-        except Exception as e:
-            logging.error("Failed to switch on KettleLogic {} {}".format(self.kettle.id, e))
 
 
 def setup(cbpi):
@@ -98,5 +77,5 @@ def setup(cbpi):
     :return: 
     '''    
     
-    cbpi.plugin.register("TEST_MashInStep", TEST_MashInStep)
+    cbpi.plugin.register("StepSchedule", StepSchedule)
     
