@@ -54,7 +54,7 @@ class StepSchedule(CBPiStep):
             self.cbpi.notify(self.name, 'Moving to the next step.', NotificationType.INFO)
             await self.next()
         else:
-            self.cbpi.notify(self.name, 'Brew time. Hit the next step!'), NotificationType.INFO, action=[NotificationAction("Next Step", self.NextStep)])
+            self.cbpi.notify(self.name, 'Brew time. Hit the next step!', NotificationType.INFO, action=[NotificationAction("Next Step", self.NextStep)])
             await self.push_update()
 
     async def on_timer_update(self,timer, seconds):
@@ -83,5 +83,5 @@ class StepSchedule(CBPiStep):
         return StepResult.DONE
 
 def setup(cbpi):
-    cbpi.plugin.register("Schedule Steps", StepSchedule)
+    cbpi.plugin.register("StepSchedule", StepSchedule)
     pass
